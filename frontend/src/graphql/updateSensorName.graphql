@@ -1,0 +1,6 @@
+mutation UpdateSensorName($spId: Int!, $name: String!) {
+  updateSensorName(spId: $spId, name: $name) {
+    spId # Changed from sp_id
+    friendlyName # Changed from friendly_name
+  }
+}

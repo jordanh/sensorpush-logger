@@ -1,0 +1,8 @@
+<![CDATA[subscription LogMessages {
+  logMessages {
+    timestamp
+    message
+    level
+  }
+}
+]]>

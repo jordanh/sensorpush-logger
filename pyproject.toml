@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "sensorpush-logger-git"
+version = "0.1.0"
+description = "A logging gateway for SensorPush HT.w devices"
+authors = ["Jordan Husney <jordan.husney@gmail.com>"]
+license = "AGPL"
+readme = "README.md"
+packages = [{include = "backend"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+bleak = "^0.22.3"
+sensorpush-ble = "^1.7.1"
+aiosqlite = "^0.21.0"
+uvicorn = { version = "^0.34.0", extras = ["standard"] }
+fastapi = "^0.115.11"
+strawberry-graphql = {version = "^0.230.0", extras = ["fastapi"]}
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+isort = "^6.0.1"
+flake8 = "^7.1.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

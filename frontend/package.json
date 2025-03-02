@@ -1,0 +1,41 @@
+{
+  "name": "sensorpush-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "proxy": "http://localhost:8000",
+  "dependencies": {
+    "@emotion/react": "^11.10.0",
+    "@emotion/styled": "^11.10.0",
+    "@mui/icons-material": "^5.11.0",
+    "@mui/material": "^5.11.0",
+    "@apollo/client": "^3.10.0",
+    "graphql": "^16.0.0",
+    "graphql-ws": "^5.16.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.3.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "dev": "concurrently \"cd .. && poetry run uvicorn backend.web_backend:app --reload --port 8000\" \"npm start\""
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.0.4",
+    "concurrently": "^8.2.2",
+    "typescript": "^4.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

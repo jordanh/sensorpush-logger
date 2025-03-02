@@ -1,0 +1,11 @@
+query GetSensors {
+  sensors {
+    spId
+    bleId
+    friendlyName
+    lastUpdate
+    # Add fields for last known values
+    lastTemperatureC
+    lastHumidity
+  }
+}
