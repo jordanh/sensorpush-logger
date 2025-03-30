@@ -8,11 +8,11 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   CircularProgress,
   Alert,
-  debounce,
+  // TextField and debounce removed as they are no longer needed
 } from "@mui/material";
+import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Import the shared component
 
 // GraphQL Query and Mutation using camelCase
 const GET_SENSORS_QUERY = gql`
@@ -94,33 +94,8 @@ const Sensors = () => {
       }
   });
 
-  // Debounced handler for name changes
-  const debouncedUpdate = useCallback(
-    debounce((spId: number, newName: string) => {
-      // Use camelCase spId in variables
-      updateSensorName({ variables: { spId, name: newName } });
-    }, 500),
-    [updateSensorName]
-  );
-
-  // Local state to manage TextField values (using spId as key)
-  const [localNames, setLocalNames] = useState<Record<number, string>>({});
-
-  // Update local state when query data changes (use camelCase)
-  React.useEffect(() => {
-    if (data?.sensors) {
-      const initialNames = data.sensors.reduce((acc, sensor) => {
-        acc[sensor.spId] = sensor.friendlyName; // Changed
-        return acc;
-      }, {} as Record<number, string>);
-      setLocalNames(initialNames);
-    }
-  }, [data]);
-
-  const handleLocalNameChange = (spId: number, newName: string) => { // Changed param name
-    setLocalNames((prev) => ({ ...prev, [spId]: newName })); // Changed key
-    debouncedUpdate(spId, newName); // Changed arg name
-  };
+  // Removed debouncedUpdate, localNames state, useEffect for localNames,
+  // and handleLocalNameChange as they are replaced by EditableFriendlyNameCell logic.
 
   if (loading) return <CircularProgress />;
   if (error) return <Alert severity="error">Error loading sensors: {error.message}</Alert>;
@@ -143,14 +118,8 @@ const Sensors = () => {
           {data?.sensors?.map((sensor) => (
             <TableRow key={sensor.spId}> {/* Changed */}
               <TableCell>{sensor.spId}</TableCell> {/* Changed */}
-              <TableCell>
-                <TextField
-                  value={localNames[sensor.spId] ?? ''}
-                  onChange={(e) => handleLocalNameChange(sensor.spId, e.target.value)}
-                  disabled={updateLoading}
-                  variant="standard"
-                />
-              </TableCell>
+              {/* Replace TextField with the reusable editable cell component */}
+              <EditableFriendlyNameCell spId={sensor.spId} initialName={sensor.friendlyName} />
             </TableRow>
           ))}
         </TableBody>

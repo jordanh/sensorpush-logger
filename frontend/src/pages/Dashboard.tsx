@@ -11,6 +11,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
+import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Import the new component
 
 // GraphQL Definitions using camelCase
 const SENSOR_UPDATES_SUBSCRIPTION = gql`
@@ -242,7 +243,8 @@ const Dashboard = () => {
         <TableBody>
           {sortedSensors.map((sensor) => (
             <TableRow key={sensor.spId} sx={getRowStyle(sensor.highlight)}>
-              <TableCell>{sensor.friendlyName}</TableCell>
+              {/* Replace static cell with the editable component */}
+              <EditableFriendlyNameCell spId={sensor.spId} initialName={sensor.friendlyName} />
               <TableCell>{sensor.spId}</TableCell>
               <TableCell>{sensor.temperature?.toFixed(2) ?? "-"}</TableCell>
               <TableCell>{sensor.humidity?.toFixed(2) ?? "-"}</TableCell>
