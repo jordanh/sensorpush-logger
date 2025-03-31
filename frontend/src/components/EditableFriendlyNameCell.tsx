@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { gql, useMutation } from "@apollo/client";
-import { TableCell, TextField, IconButton, Box } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit"; // Import the Edit icon
+import { TableCell } from "@/components/ui/table"; // Use shadcn TableCell
+import { Input } from "@/components/ui/input"; // Use shadcn Input
+import { Button } from "@/components/ui/button"; // Use shadcn Button
+import { Pencil } from "lucide-react"; // Use lucide-react icon
+import { cn } from "@/lib/utils"; // Import cn utility
 
-// Define the mutation structure based on the .graphql file
+// Define the mutation structure (keep as is)
 const UPDATE_SENSOR_NAME = gql`
   mutation UpdateSensorName($spId: Int!, $name: String!) {
     updateSensorName(spId: $spId, name: $name) {
@@ -24,71 +27,58 @@ const EditableFriendlyNameCell: React.FC<EditableFriendlyNameCellProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentName, setCurrentName] = useState(initialName);
-  const [isHovering, setIsHovering] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [updateName, { loading, error }] = useMutation(UPDATE_SENSOR_NAME, {
-    // Optimistic update (optional but good UX)
     optimisticResponse: {
       updateSensorName: {
-        __typename: "Sensor", // Ensure typename matches schema if using cache normalization extensively
+        __typename: "Sensor",
         spId: spId,
         friendlyName: currentName,
       },
     },
-    // You might need explicit cache updates if optimisticResponse isn't enough
-    // or if your cache isn't normalized perfectly by spId.
-    // update(cache, { data: { updateSensorName } }) {
-    //   // Manual cache update logic here if needed
-    // }
     onError: (err) => {
       console.error("Error updating sensor name:", err);
-      // Revert optimistic update on error
-      setCurrentName(initialName); // Or fetch the latest name again
-      setIsEditing(false); // Exit editing mode on error
+      setCurrentName(initialName);
+      setIsEditing(false);
     },
     onCompleted: (data) => {
-      // Update local state with the confirmed name from the server
-      // This handles cases where the server might modify the name (e.g., trimming)
       if (data?.updateSensorName?.friendlyName) {
         setCurrentName(data.updateSensorName.friendlyName);
       }
-      setIsEditing(false); // Exit editing mode on success
+      setIsEditing(false);
     }
   });
 
-  // Focus input when entering edit mode
+  // Focus input when entering edit mode (keep as is)
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
-      // Select text for easier editing
       inputRef.current.select();
     }
   }, [isEditing]);
 
   const handleEditClick = () => {
-    setCurrentName(initialName); // Reset to initial name when starting edit
+    // Do not reset currentName here; keep the latest value
     setIsEditing(true);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
-    setCurrentName(initialName); // Revert to the name before editing started
+    setCurrentName(initialName);
   };
 
   const handleSave = () => {
-    // Prevent saving if the name hasn't changed or is empty
     if (currentName.trim() === initialName.trim() || currentName.trim() === "") {
-      handleCancel(); // Just cancel if no change or empty
+      handleCancel();
       return;
     }
     if (!loading) {
         updateName({ variables: { spId: spId, name: currentName.trim() } });
-        // setIsEditing(false); // Set by onCompleted/onError now
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { // Correct event type for Input
     if (event.key === "Enter") {
       event.preventDefault();
       handleSave();
@@ -99,70 +89,58 @@ const EditableFriendlyNameCell: React.FC<EditableFriendlyNameCellProps> = ({
   };
 
   const handleBlur = () => {
-    // Small delay to allow Enter key press to register before blur potentially cancels
+    // Small delay to allow Enter/Escape key press to register before blur potentially cancels
     setTimeout(() => {
-        // Check if we are still in editing mode.
-        // If Enter was pressed, onCompleted/onError would have set isEditing to false.
         if (isEditing) {
             handleCancel();
         }
-    }, 100); // Adjust delay if needed
+    }, 100);
   };
 
 
   return (
+    // Use group utility on the TableCell for hover effects on children
     <TableCell
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      onClick={!isEditing ? handleEditClick : undefined} // Only allow click to edit when not already editing
-      sx={{ position: "relative", cursor: isEditing ? "default" : "pointer" }}
+      className={cn("relative group", isEditing ? "cursor-default" : "cursor-pointer")}
+      onClick={!isEditing ? handleEditClick : undefined}
     >
       {isEditing ? (
-        <TextField
-          inputRef={inputRef}
+        <Input
+          ref={inputRef}
           value={currentName}
           onChange={(e) => setCurrentName(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          variant="standard" // Use standard variant for less visual clutter
-          size="small"
-          fullWidth
-          autoFocus // Helps ensure focus on initial render in edit mode
-          sx={{
-            // Remove extra padding/margin to fit better in the cell
-            padding: 0,
-            margin: 0,
-            '& .MuiInputBase-root': {
-                marginTop: 0, // Adjust if needed based on TableCell padding
-            },
-          }}
-          disabled={loading} // Disable input while saving
+          autoFocus
+          disabled={loading}
+          className="h-8 px-2 py-1 text-sm" // Adjust size to fit cell better
         />
       ) : (
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <span>{currentName}</span>
-          <IconButton
-            size="small"
+        // Use flexbox to align name and button
+        <div className="flex items-center justify-between w-full min-h-[32px]"> {/* Ensure min height */}
+          <span className="truncate pr-1">{currentName}</span> {/* Add padding-right */}
+          {/* Use shadcn Button for the icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200", // Tailwind for hover effect
+              loading && "opacity-50 cursor-not-allowed" // Style when loading
+            )}
             onClick={(e) => {
                 e.stopPropagation(); // Prevent TableCell click handler
                 handleEditClick();
             }}
-            sx={{
-              visibility: isHovering ? "visible" : "hidden",
-              opacity: isHovering ? 1 : 0,
-              transition: "opacity 0.2s ease-in-out, visibility 0.2s ease-in-out",
-              padding: '2px' // Reduce padding
-            }}
             aria-label="edit friendly name"
+            disabled={loading}
           >
-            <EditIcon fontSize="inherit" />
-          </IconButton>
-        </Box>
+            <Pencil className="h-4 w-4" /> {/* Use lucide icon */}
+          </Button>
+        </div>
       )}
-      {/* Optional: Add loading indicator */}
-      {/* {loading &amp;&amp; <CircularProgress size={16} sx={{ position: 'absolute', right: 5, top: '50%', marginTop: '-8px' }} />} */}
-      {/* Optional: Add error indicator */}
-      {/* {error &amp;&amp; <Tooltip title={error.message}><ErrorOutlineIcon color="error" sx={{ position: 'absolute', right: 5, top: '50%', marginTop: '-8px' }} /></Tooltip>} */}
+      {/* Optional: Add loading/error indicators if desired using Tailwind */}
+      {/* {loading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Saving...</span>} */}
+      {/* {error && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-destructive">Error</span>} */}
     </TableCell>
   );
 };

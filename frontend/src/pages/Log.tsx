@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSubscription, gql } from "@apollo/client"; // Import gql
-import { Box, Typography, Checkbox, FormControlLabel, Paper } from "@mui/material";
+import { useSubscription, gql } from "@apollo/client";
+import { Checkbox } from "@/components/ui/checkbox"; // Import shadcn Checkbox
+import { Label } from "@/components/ui/label"; // Import shadcn Label
+import { cn } from "@/lib/utils"; // Import cn utility
 
-// Define the GraphQL subscription directly using gql
+// Define the GraphQL subscription (keep as is)
 const LOG_MESSAGES_SUBSCRIPTION = gql`
   subscription LogMessages {
     logMessages {
@@ -13,14 +15,14 @@ const LOG_MESSAGES_SUBSCRIPTION = gql`
   }
 `;
 
-// Define the type for a single log message based on the GraphQL schema
+// Define the type for a single log message (keep as is)
 interface LogMessage {
-  timestamp: string; // ISO string format
+  timestamp: string;
   message: string;
   level: string;
 }
 
-// Define the type for the subscription data
+// Define the type for the subscription data (keep as is)
 interface LogMessagesData {
   logMessages: LogMessage;
 }
@@ -30,74 +32,91 @@ const LogPage = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Use the defined subscription document
+  // Use the defined subscription document (keep as is)
   const { data, loading, error } = useSubscription<LogMessagesData>(
     LOG_MESSAGES_SUBSCRIPTION
   );
 
+  // Effect to add new logs (keep as is)
   useEffect(() => {
     if (data?.logMessages) {
-      // Add new message to the end of the array
       setLogs((prevLogs) => [...prevLogs, data.logMessages]);
     }
   }, [data]);
 
+  // Effect for auto-scrolling (keep as is)
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
-      // Scroll to the bottom
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs, autoScroll]); // Trigger scroll on new logs if autoScroll is enabled
+  }, [logs, autoScroll]);
 
-  const handleAutoScrollChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setAutoScroll(event.target.checked);
+  // Handler for checkbox change (logic is similar, adapted for shadcn Checkbox)
+  // Note: shadcn Checkbox uses onCheckedChange which passes the checked state directly
+  const handleAutoScrollChange = (checked: boolean | "indeterminate") => {
+     if (typeof checked === 'boolean') {
+        setAutoScroll(checked);
+     }
+  };
+
+  // Helper to determine text color based on log level
+  const getLevelColor = (level: string): string => {
+    switch (level.toUpperCase()) {
+      case "ERROR":
+        return "text-red-600";
+      case "WARNING":
+        return "text-yellow-600";
+      case "INFO":
+        return "text-blue-600";
+      case "DEBUG":
+        return "text-gray-500";
+      default:
+        return "text-foreground"; // Default text color
+    }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+    // Replace Box with div and Tailwind padding
+    <div className="p-4 md:p-6 lg:p-8">
+      {/* Replace Typography with h1 and Tailwind classes */}
+      <h1 className="text-2xl font-bold mb-4">
         Application Log
-      </Typography>
+      </h1>
 
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={autoScroll}
-            onChange={handleAutoScrollChange}
-            name="autoScrollCheckbox"
-          />
-        }
-        label="Auto-scroll"
-        sx={{ mb: 2 }}
-      />
+      {/* Replace FormControlLabel/Checkbox with shadcn Label/Checkbox */}
+      <div className="flex items-center space-x-2 mb-4">
+        <Checkbox
+          id="autoScrollCheckbox"
+          checked={autoScroll}
+          onCheckedChange={handleAutoScrollChange}
+        />
+        <Label htmlFor="autoScrollCheckbox">
+          Auto-scroll
+        </Label>
+      </div>
 
-      <Paper
+      {/* Replace Paper with div and Tailwind classes */}
+      <div
         ref={scrollRef}
-        sx={{
-          height: "60vh", // Adjust height as needed
-          overflowY: "scroll",
-          p: 2,
-          border: "1px solid #ccc",
-          backgroundColor: "#f5f5f5", // Light background for the log area
-          fontFamily: "monospace", // Use monospace font for logs
-          fontSize: "0.875rem", // Slightly smaller font size
-        }}
+        className="h-[60vh] overflow-y-scroll p-3 border border-border bg-muted/40 font-mono text-sm rounded-md" // Apply styles using Tailwind
       >
-        {loading && <Typography>Connecting to log stream...</Typography>}
-        {error && <Typography color="error">Error loading logs: {error.message}</Typography>}
-        {!loading && !error && logs.length === 0 && <Typography>No log messages received yet.</Typography>}
+        {loading && <p className="text-muted-foreground">Connecting to log stream...</p>}
+        {error && <p className="text-destructive">Error loading logs: {error.message}</p>}
+        {!loading && !error && logs.length === 0 && <p className="text-muted-foreground">No log messages received yet.</p>}
+        {/* Use <pre> for better formatting of potential multi-line logs */}
         {logs.map((log, index) => (
-          <Typography
+          <pre
             key={index}
-            component="div" // Use div to allow block display
-            sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", mb: 0.5 }} // Ensure wrapping and spacing
+            className={cn(
+              "whitespace-pre-wrap break-words mb-1", // Ensure wrapping and spacing
+              getLevelColor(log.level) // Apply color based on level
+            )}
           >
-            {/* Basic formatting - consider adding color based on level */}
-            {new Date(log.timestamp).toLocaleString()} [{log.level}] {log.message}
-          </Typography>
+            {`${new Date(log.timestamp).toLocaleString()} [${log.level}] ${log.message}`}
+          </pre>
         ))}
-      </Paper>
-    </Box>
+      </div>
+    </div>
   );
 };
 

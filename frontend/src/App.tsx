@@ -2,10 +2,10 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navigation from "./components/Navigation";
 import Dashboard from "./pages/Dashboard";
+import LogPage from "./pages/Log";
 import ExportPage from "./pages/Export";
 import Sensors from "./pages/Sensors";
 import Config from "./pages/Config";
-import LogPage from "./pages/Log"; // Import the new Log page
 
 function App() {
   return (

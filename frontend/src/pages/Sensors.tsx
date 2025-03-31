@@ -1,27 +1,28 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import { gql, useQuery, useMutation } from "@apollo/client";
 import {
-  Container,
-  Typography,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TableHeader,
   TableRow,
-  CircularProgress,
+} from "@/components/ui/table"; // Use shadcn Table
+import {
   Alert,
-  // TextField and debounce removed as they are no longer needed
-} from "@mui/material";
-import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Import the shared component
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"; // Use shadcn Alert
+import { Terminal } from "lucide-react"; // Icon for Alert
+import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Keep existing import
 
-// GraphQL Query and Mutation using camelCase
+// GraphQL Query and Mutation (keep as is)
 const GET_SENSORS_QUERY = gql`
   query GetSensors {
     sensors {
-      spId # Changed
-      bleId # Changed
-      friendlyName # Changed
-      # lastUpdate field is not needed on this page based on current UI
+      spId
+      bleId
+      friendlyName
     }
   }
 `;
@@ -29,57 +30,50 @@ const GET_SENSORS_QUERY = gql`
 const UPDATE_SENSOR_NAME_MUTATION = gql`
   mutation UpdateSensorName($spId: Int!, $name: String!) {
     updateSensorName(spId: $spId, name: $name) {
-      spId # Changed
-      friendlyName # Changed
+      spId
+      friendlyName
     }
   }
 `;
 
-// Interface for the sensor data from the query using camelCase
+// Interfaces (keep as is)
 interface SensorQueryItem {
-  spId: number; // Changed
-  bleId: string; // Changed
-  friendlyName: string; // Changed
+  spId: number;
+  bleId: string;
+  friendlyName: string;
 }
 
 interface SensorData {
   sensors: SensorQueryItem[];
 }
 
-// Interface for the mutation result using camelCase
 interface UpdateSensorNameData {
   updateSensorName: {
-    spId: number; // Changed
-    friendlyName: string; // Changed
+    spId: number;
+    friendlyName: string;
   };
 }
 
 const Sensors = () => {
-  // Fetch sensors using useQuery
   const { data, loading, error } = useQuery<SensorData>(GET_SENSORS_QUERY);
 
-  // Mutation hook for updating sensor names
+  // Mutation hook remains the same, including cache update logic
   const [updateSensorName, { loading: updateLoading, error: updateError }] = useMutation<
     UpdateSensorNameData,
-    { spId: number; name: string } // Variables type remains the same
+    { spId: number; name: string }
   >(UPDATE_SENSOR_NAME_MUTATION, {
-     // Add an optimistic response for smoother UI update
      optimisticResponse: (variables) => ({
         updateSensorName: {
-          __typename: "Sensor", // Important for cache matching
+          __typename: "Sensor",
           spId: variables.spId,
           friendlyName: variables.name,
         },
       }),
-      // Update cache directly after mutation for robust state management
       update(cache, { data: mutationResult }) {
         const updatedSensor = mutationResult?.updateSensorName;
         if (!updatedSensor) return;
-
-        // Read the existing sensors from the cache
         const existingData = cache.readQuery<SensorData>({ query: GET_SENSORS_QUERY });
         if (existingData?.sensors) {
-          // Write the updated sensor data back to the cache
           cache.writeQuery({
             query: GET_SENSORS_QUERY,
             data: {
@@ -94,37 +88,60 @@ const Sensors = () => {
       }
   });
 
-  // Removed debouncedUpdate, localNames state, useEffect for localNames,
-  // and handleLocalNameChange as they are replaced by EditableFriendlyNameCell logic.
-
-  if (loading) return <CircularProgress />;
-  if (error) return <Alert severity="error">Error loading sensors: {error.message}</Alert>;
+  // Loading and initial error states
+  if (loading) return <p className="p-4 text-muted-foreground">Loading sensors...</p>; // Replace CircularProgress
+  if (error) {
+    return (
+      <div className="p-4"> {/* Add padding */}
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error Loading Sensors</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
-    <Container>
-      <Typography variant="h4" gutterBottom>
+    // Replace Container with div and Tailwind classes
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      {/* Replace Typography with h1 */}
+      <h1 className="text-2xl font-bold mb-4">
         Sensors
-      </Typography>
-      {updateError && <Alert severity="warning">Error updating name: {updateError.message}</Alert>}
+      </h1>
+
+      {/* Display mutation errors */}
+      {updateError && (
+         <Alert variant="default" className="mb-4 border-yellow-500/50 text-yellow-700 dark:border-yellow-500 [&>svg]:text-yellow-700 dark:[&>svg]:text-yellow-500"> {/* Warning style */}
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Update Error</AlertTitle>
+          <AlertDescription>{updateError.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Replace MUI Table with shadcn/ui Table */}
       <Table>
-        <TableHead>
+        <TableHeader>
           <TableRow>
-            <TableCell>SensorPush ID</TableCell>
-            <TableCell>Friendly Name</TableCell>
+            <TableHead>SensorPush ID</TableHead>
+            <TableHead>Friendly Name</TableHead>
+            {/* Add BLE ID column if needed */}
+            {/* <TableHead>BLE ID</TableHead> */}
           </TableRow>
-        </TableHead>
+        </TableHeader>
         <TableBody>
-          {/* Use camelCase fields from data */}
           {data?.sensors?.map((sensor) => (
-            <TableRow key={sensor.spId}> {/* Changed */}
-              <TableCell>{sensor.spId}</TableCell> {/* Changed */}
-              {/* Replace TextField with the reusable editable cell component */}
+            <TableRow key={sensor.spId}>
+              <TableCell>{sensor.spId}</TableCell>
+              {/* Use the already migrated component */}
               <EditableFriendlyNameCell spId={sensor.spId} initialName={sensor.friendlyName} />
+              {/* Add BLE ID cell if needed */}
+              {/* <TableCell>{sensor.bleId}</TableCell> */}
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Container>
+    </div>
   );
 };
 

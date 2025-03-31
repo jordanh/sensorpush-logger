@@ -1,28 +1,28 @@
 import React from "react";
-import { AppBar, Toolbar, Button } from "@mui/material";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button"; // Import shadcn/ui Button
 
 const Navigation = () => {
   return (
-    <AppBar position="static">
-      <Toolbar>
-        <Button color="inherit" component={Link} to="/dashboard">
-          Dashboard
+    <nav className="bg-primary text-primary-foreground p-4">
+      <div className="container mx-auto flex items-center space-x-4">
+        <Button variant="ghost" asChild>
+          <Link to="/dashboard">Dashboard</Link>
         </Button>
-        <Button color="inherit" component={Link} to="/log">
-          Log
+        <Button variant="ghost" asChild>
+          <Link to="/log">Log</Link>
         </Button>
-        <Button color="inherit" component={Link} to="/export">
-          Export
+        <Button variant="ghost" asChild>
+          <Link to="/export">Export</Link>
         </Button>
-        <Button color="inherit" component={Link} to="/sensors">
-          Sensors
+        <Button variant="ghost" asChild>
+          <Link to="/sensors">Sensors</Link>
         </Button>
-        <Button color="inherit" component={Link} to="/config">
-          Config
+        <Button variant="ghost" asChild>
+          <Link to="/config">Config</Link>
         </Button>
-      </Toolbar>
-    </AppBar>
+      </div>
+    </nav>
   );
 };
 

@@ -1,19 +1,23 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { gql, useSubscription, useQuery } from "@apollo/client";
 import {
-  Container,
-  Typography,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TableHeader,
   TableRow,
-  CircularProgress,
+} from "@/components/ui/table"; // Import shadcn/ui Table components
+import {
   Alert,
-} from "@mui/material";
-import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Import the new component
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"; // Import shadcn/ui Alert components
+import { Terminal } from "lucide-react"; // Icon for Alert
+import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Keep existing import for now
+import { cn } from "@/lib/utils"; // Import the cn utility
 
-// GraphQL Definitions using camelCase
+// GraphQL Definitions (keep as is)
 const SENSOR_UPDATES_SUBSCRIPTION = gql`
   subscription SensorUpdates {
     sensorUpdates {
@@ -33,14 +37,13 @@ const GET_SENSORS_QUERY = gql`
       bleId
       friendlyName
       lastUpdate
-      # Add fields for last known values from initial query
       lastTemperatureC
       lastHumidity
     }
   }
 `;
 
-// Interfaces for GraphQL data using camelCase
+// Interfaces (keep as is)
 interface SensorUpdatePayload {
   deviceSpId: number;
   friendlyName: string;
@@ -54,7 +57,6 @@ interface SensorQueryItem {
   bleId: string;
   friendlyName: string;
   lastUpdate: string | null;
-  // Add fields for last known values from initial query
   lastTemperatureC: number | null;
   lastHumidity: number | null;
 }
@@ -67,18 +69,17 @@ interface SensorUpdateData {
   sensorUpdates: SensorUpdatePayload;
 }
 
-// Interface for component state - align with GraphQL names (camelCase)
 interface SensorState {
   spId: number;
   friendlyName: string;
-  temperature?: number; // Keep internal state name simple
-  humidity?: number; // Keep internal state name simple
-  lastUpdateStr?: string; // Formatted string for display
-  lastUpdateTs?: number; // Timestamp (ms) for sorting
+  temperature?: number;
+  humidity?: number;
+  lastUpdateStr?: string;
+  lastUpdateTs?: number;
   highlight: "new" | "updated" | "";
 }
 
-// Helper to convert ISO string or null to timestamp number or undefined
+// Helper functions (keep as is)
 const parseTimestamp = (isoString: string | null | undefined): number | undefined => {
   if (!isoString) return undefined;
   try {
@@ -88,7 +89,6 @@ const parseTimestamp = (isoString: string | null | undefined): number | undefine
   }
 };
 
-// Helper to format timestamp number or undefined to locale string or '-'
 const formatTimestamp = (timestamp: number | undefined): string => {
   if (timestamp === undefined) return "-";
   try {
@@ -100,48 +100,39 @@ const formatTimestamp = (timestamp: number | undefined): string => {
 
 
 const Dashboard = () => {
-  // Use spId as the key for the Map
   const [sensors, setSensors] = useState<Map<number, SensorState>>(new Map());
 
-  // Fetch initial list of sensors
   const {
     data: initialSensorsData,
     loading: initialLoading,
     error: initialError
   } = useQuery<GetSensorsData>(GET_SENSORS_QUERY, {
-    fetchPolicy: "cache-and-network", // Fetch from network even if in cache initially
+    fetchPolicy: "cache-and-network",
   });
 
-  // Subscribe to real-time updates
   const {
     data: subscriptionData,
-    loading: subscriptionLoading, // Can be ignored or used for a subtle indicator
+    loading: subscriptionLoading, // Can be ignored
     error: subscriptionError
   } = useSubscription<SensorUpdateData>(SENSOR_UPDATES_SUBSCRIPTION);
 
-  // Effect to load initial sensors from query result
+  // Effect to load initial sensors (logic remains the same)
   useEffect(() => {
     if (initialSensorsData?.sensors) {
       setSensors((prevSensors) => {
         const newSensors = new Map(prevSensors);
         initialSensorsData.sensors.forEach(sensor => {
-          // Use camelCase fields from query data
           if (!newSensors.has(sensor.spId)) {
             const lastUpdateTs = parseTimestamp(sensor.lastUpdate);
             newSensors.set(sensor.spId, {
               spId: sensor.spId,
               friendlyName: sensor.friendlyName || `Sensor ${sensor.spId}`,
-              // Populate initial temp/humidity from query result
               temperature: sensor.lastTemperatureC ?? undefined,
               humidity: sensor.lastHumidity ?? undefined,
               lastUpdateTs: lastUpdateTs,
               lastUpdateStr: formatTimestamp(lastUpdateTs),
-              highlight: "", // No highlight for initial load
+              highlight: "",
             });
-          } else {
-            // Optionally update existing sensor if query data is newer?
-            // For now, we prioritize subscription updates for existing sensors.
-            // Could compare sensor.lastUpdate timestamp if needed.
           }
         });
         return newSensors;
@@ -149,13 +140,12 @@ const Dashboard = () => {
     }
   }, [initialSensorsData]);
 
-  // Effect to handle incoming subscription data
+  // Effect to handle subscription data (logic remains the same)
   useEffect(() => {
     if (subscriptionData?.sensorUpdates) {
       const update = subscriptionData.sensorUpdates;
       setSensors((prevSensors) => {
         const newSensors = new Map(prevSensors);
-        // Use camelCase fields from subscription data
         const existingSensor = newSensors.get(update.deviceSpId);
         const isNew = !existingSensor;
         const newHighlight = isNew ? "new" : "updated";
@@ -177,7 +167,7 @@ const Dashboard = () => {
     }
   }, [subscriptionData]);
 
-  // Effect to clear highlights after 3 seconds
+  // Effect to clear highlights (logic remains the same)
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
     sensors.forEach((sensor) => {
@@ -192,7 +182,7 @@ const Dashboard = () => {
             }
             return prevSensors;
           });
-        }, 3000);
+        }, 3000); // Keep 3 second highlight
         timers.push(timer);
       }
     });
@@ -201,49 +191,73 @@ const Dashboard = () => {
     };
   }, [sensors]);
 
-  // Styling logic
-  const baseStyle = { backgroundColor: "white", transition: "background-color 1s ease" };
-  const getRowStyle = (highlight: "new" | "updated" | "") => {
-    if (highlight === "new") return { ...baseStyle, backgroundColor: "lightgreen" };
-    if (highlight === "updated") return { ...baseStyle, backgroundColor: "lightyellow" };
-    return baseStyle;
-  };
-
-  // Memoized sorted sensor list for rendering
+  // Memoized sorted sensor list (logic remains the same)
   const sortedSensors = useMemo(() => {
     return Array.from(sensors.values()).sort((a, b) => {
       const tsA = a.lastUpdateTs ?? -Infinity;
       const tsB = b.lastUpdateTs ?? -Infinity;
-      return tsB - tsA; // Sort descending by timestamp
+      return tsB - tsA;
     });
   }, [sensors]);
 
-  // Combined loading state
-  const isLoading = initialLoading; // Primarily wait for initial load
+  const isLoading = initialLoading;
 
   return (
-    <Container>
-      <Typography variant="h4" gutterBottom>
+    // Replace Container with div and Tailwind classes
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      {/* Replace Typography with h1 and Tailwind classes */}
+      <h1 className="text-2xl font-bold mb-4">
         Dashboard
-      </Typography>
-      {isLoading && <CircularProgress />}
-      {initialError && <Alert severity="error">Error loading initial sensors: {initialError.message}</Alert>}
-      {/* Display subscription error separately, less critical than initial load */}
-      {subscriptionError && !isLoading && <Alert severity="warning" sx={{ mt: 1 }}>Subscription error: {subscriptionError.message}</Alert>}
+      </h1>
+
+      {/* Loading State */}
+      {isLoading && <p className="text-muted-foreground">Loading initial sensor data...</p>}
+
+      {/* Initial Load Error */}
+      {initialError && (
+        <Alert variant="destructive" className="mb-4">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error Loading Sensors</AlertTitle>
+          <AlertDescription>
+            {initialError.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Subscription Error (less critical) */}
+      {subscriptionError && !isLoading && (
+         <Alert variant="default" className="mb-4 bg-yellow-100 border-yellow-300 text-yellow-800"> {/* Custom variant styling */}
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Subscription Warning</AlertTitle>
+          <AlertDescription>
+            {subscriptionError.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Replace MUI Table with shadcn/ui Table */}
       <Table>
-        <TableHead>
+        <TableHeader>
           <TableRow>
-            <TableCell>Friendly Name</TableCell>
-            <TableCell>Sensor ID</TableCell>
-            <TableCell>Temperature (°C)</TableCell>
-            <TableCell>Humidity (%)</TableCell>
-            <TableCell>Last Update</TableCell>
+            <TableHead>Friendly Name</TableHead>
+            <TableHead>Sensor ID</TableHead>
+            <TableHead>Temperature (°C)</TableHead>
+            <TableHead>Humidity (%)</TableHead>
+            <TableHead>Last Update</TableHead>
           </TableRow>
-        </TableHead>
+        </TableHeader>
         <TableBody>
           {sortedSensors.map((sensor) => (
-            <TableRow key={sensor.spId} sx={getRowStyle(sensor.highlight)}>
-              {/* Replace static cell with the editable component */}
+            <TableRow
+              key={sensor.spId}
+              // Apply conditional classes using cn utility
+              className={cn(
+                "transition-colors duration-1000 ease-in-out", // Base transition
+                sensor.highlight === "new" && "bg-green-100",
+                sensor.highlight === "updated" && "bg-yellow-100"
+              )}
+            >
+              {/* Keep EditableFriendlyNameCell for now */}
               <EditableFriendlyNameCell spId={sensor.spId} initialName={sensor.friendlyName} />
               <TableCell>{sensor.spId}</TableCell>
               <TableCell>{sensor.temperature?.toFixed(2) ?? "-"}</TableCell>
@@ -253,7 +267,7 @@ const Dashboard = () => {
           ))}
         </TableBody>
       </Table>
-    </Container>
+    </div>
   );
 };
 
