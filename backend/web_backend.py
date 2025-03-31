@@ -173,24 +173,24 @@ if os.path.exists(BUILD_DIR):
 else:
     logger.error(f"Frontend build directory '{BUILD_DIR}' or static subfolder not found. Static files will not be served correctly.")
 
-# Serve index.html for SPA routing THIRD (catch-all)
-@app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
-    index_path = os.path.join(BUILD_DIR, "index.html")
-    if os.path.exists(index_path):
-        # Check if the request looks like it's for a file within the static mount path
-        # This is a simple check, might need refinement depending on asset paths
-        if full_path.startswith("static/"):
-             # Let the static mount handle it (or return 404 if not found there)
-             # This part might be redundant if StaticFiles handles its path correctly
-             # but serves as a fallback concept. A direct 404 might be better here.
-             return Response("Not Found", status_code=404)
-
-        logger.debug(f"Serving index.html for SPA route: /{full_path}")
-        return FileResponse(index_path)
-    else:
-        logger.warning(f"index.html not found at {index_path}. Cannot serve SPA.")
-        return Response("Frontend not found. Please build the frontend application.", status_code=404)
+# Serve index.html for SPA routing THIRD (catch-all) - COMMENTED OUT FOR DEV
+# @app.get("/{full_path:path}")
+# async def serve_spa(full_path: str):
+#     index_path = os.path.join(BUILD_DIR, "index.html")
+#     if os.path.exists(index_path):
+#         # Check if the request looks like it's for a file within the static mount path
+#         # This is a simple check, might need refinement depending on asset paths
+#         if full_path.startswith("static/"):
+#              # Let the static mount handle it (or return 404 if not found there)
+#              # This part might be redundant if StaticFiles handles its path correctly
+#              # but serves as a fallback concept. A direct 404 might be better here.
+#              return Response("Not Found", status_code=404)
+#
+#         logger.debug(f"Serving index.html for SPA route: /{full_path}")
+#         return FileResponse(index_path)
+#     else:
+#         logger.warning(f"index.html not found at {index_path}. Cannot serve SPA.")
+#         return Response("Frontend not found. Please build the frontend application.", status_code=404)
 
 
 # --- Removed Old Lifecycle Events (@app.on_event) ---
