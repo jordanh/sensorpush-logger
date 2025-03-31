@@ -2,6 +2,7 @@
   "name": "sensorpush-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "proxy": "http://localhost:8000",
   "dependencies": {
     "@apollo/client": "^3.10.0",
