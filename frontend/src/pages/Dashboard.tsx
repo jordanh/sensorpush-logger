@@ -17,6 +17,7 @@ import {
 import { Terminal, LineChart } from "lucide-react"; // Import icons
 import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell";
 import { cn } from "@/lib/utils"; // Import the cn utility
+import { formatDistanceToNow } from 'date-fns'; // Import for relative time
 
 // GraphQL Definitions (Inline)
 const SENSOR_UPDATES_SUBSCRIPTION = gql`
@@ -93,8 +94,10 @@ const parseTimestamp = (isoString: string | null | undefined): number | undefine
 const formatTimestamp = (timestamp: number | undefined): string => {
   if (timestamp === undefined) return "-";
   try {
-    return new Date(timestamp).toLocaleString();
+    // Use formatDistanceToNow for relative time
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   } catch (e) {
+    console.error("Error formatting relative time in Dashboard:", e);
     return "-";
   }
 };
@@ -102,6 +105,16 @@ const formatTimestamp = (timestamp: number | undefined): string => {
 
 const Dashboard = () => {
   const [sensors, setSensors] = useState<Map<number, SensorState>>(new Map());
+  const [, setForceUpdate] = useState(Date.now()); // State to trigger re-renders for relative time
+
+  // Effect to update relative time display periodically
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setForceUpdate(Date.now());
+    }, 30000); // Update every 30 seconds
+    return () => clearInterval(timerId); // Cleanup interval on unmount
+  }, []);
+
 
   // Use the inline GET_SENSORS_QUERY
   const {

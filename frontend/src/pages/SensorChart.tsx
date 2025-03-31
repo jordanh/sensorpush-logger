@@ -4,7 +4,7 @@ import { gql, useQuery, useSubscription } from '@apollo/client';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { subHours, subDays, subMonths, subYears } from 'date-fns'; // Removed startOfMinute, not used
+import { subHours, subDays, subMonths, subYears, format, formatDistanceToNow } from 'date-fns'; // Import formatDistanceToNow
 
 // Import shadcn/ui components
 import {
@@ -19,46 +19,39 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react"; // Icon for Alert
 
 // Import shared subscription from Dashboard
-// Note: This creates a dependency between pages, consider moving shared GQL definitions
-// to a dedicated location (e.g., src/graphql) if using codegen or loaders later.
 import { SENSOR_UPDATES_SUBSCRIPTION } from './Dashboard';
 
 // GraphQL Definitions (Inline for now)
-// Query fetches ALL samples in range, filtering happens client-side
 const GET_SAMPLES_IN_RANGE = gql`
   query GetSamplesInRange($begin: DateTime!, $end: DateTime!) {
     samples(begin: $begin, end: $end) {
-      deviceSpId # Needed for client-side filtering
-      friendlyName # Needed for title
+      deviceSpId
+      friendlyName
       temperatureC
       humidity
       createdOn
     }
-    # Cannot query single sensor directly with current schema
   }
 `;
 
-// Interfaces (adjusted for current schema)
+// Interfaces
 interface Sample {
-  deviceSpId: number; // Added for filtering
-  friendlyName: string; // Added for title
+  deviceSpId: number;
+  friendlyName: string;
   temperatureC: number;
   humidity: number;
-  createdOn: string; // ISO string from backend
+  createdOn: string;
 }
 
 interface QueryData {
-  // No longer fetching single sensor info directly
   samples: Sample[];
 }
 
 interface QueryVars {
-  // No deviceSpId needed for query itself
-  begin: string; // ISO string
-  end: string; // ISO string
+  begin: string;
+  end: string;
 }
 
-// Interface for the imported SENSOR_UPDATES_SUBSCRIPTION payload
 interface SensorUpdatePayload {
     deviceSpId: number;
     friendlyName: string;
@@ -70,9 +63,6 @@ interface SensorUpdatePayload {
 interface SubscriptionData {
   sensorUpdates: SensorUpdatePayload;
 }
-
-// No variables needed for the all-sensor subscription
-// interface SubscriptionVars {}
 
 interface ChartDataPoint {
   timestamp: number;
@@ -91,20 +81,46 @@ const parseTimestamp = (isoString: string | null | undefined): number | undefine
   }
 };
 
-// Helper to format timestamp for display
+// Helper to format timestamp for display (e.g., Last Update) using relative time
 const formatDisplayTimestamp = (timestamp: number | undefined | null): string => {
   if (timestamp === undefined || timestamp === null) return "-";
   try {
-    return new Date(timestamp).toLocaleString();
+    // Add suffix 'ago' or 'in X minutes' etc.
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   } catch (e) {
+    console.error("Error formatting relative time:", e);
     return "-";
+  }
+};
+
+// Helper to format X-axis ticks based on period
+const formatXAxisTick = (unixTime: number, period: string): string => {
+  const date = new Date(unixTime);
+  try {
+    switch (period) {
+      case '1h':
+      case '4h': // Added
+      case '12h': // Added
+      case '24h':
+        return format(date, 'h:mm a'); // Time only for up to 24h
+      case '7d':
+      case '30d':
+        return format(date, 'M/d h:mm a');
+      case '1y':
+      case 'all':
+      default:
+        return format(date, 'M/d/yy');
+    }
+  } catch (e) {
+    return '';
   }
 };
 
 // Define period options
 const periodOptions = [
   { value: '1h', label: '1 Hour' },
-  { value: '6h', label: '6 Hours' },
+  { value: '4h', label: '4 Hours' }, // Changed from 6h
+  { value: '12h', label: '12 Hours' }, // Added 12h
   { value: '24h', label: '24 Hours' },
   { value: '7d', label: '7 Days' },
   { value: '30d', label: '30 Days' },
@@ -112,56 +128,83 @@ const periodOptions = [
   { value: 'all', label: 'All Time' },
 ];
 
+// Custom Tick component for XAxis rotation
+interface CustomizedAxisTickProps {
+  x?: number;
+  y?: number;
+  payload?: { value: number }; // payload.value is the timestamp
+  period: string; // Pass period for formatting
+}
+
+const CustomizedAxisTick: React.FC<CustomizedAxisTickProps> = ({ x, y, payload, period }) => {
+  if (x === undefined || y === undefined || payload === undefined) {
+    return null;
+  }
+
+  const formattedTick = formatXAxisTick(payload.value, period);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={16} textAnchor="end" fill="#d1d5db" transform="rotate(-45)">
+        {formattedTick}
+      </text>
+    </g>
+  );
+};
+
+
 const SensorChart = () => {
   const { sensorId } = useParams<{ sensorId: string }>();
-  const deviceSpId = parseInt(sensorId || '0', 10); // Ensure it's a number
+  const deviceSpId = parseInt(sensorId || '0', 10);
 
-  const [period, setPeriod] = useState<string>('24h'); // Default period
+  const [period, setPeriod] = useState<string>('24h');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [friendlyName, setFriendlyName] = useState<string>(`Sensor ${deviceSpId}`); // Default name
+  const [friendlyName, setFriendlyName] = useState<string>(`Sensor ${deviceSpId}`);
   const [lastUpdateTs, setLastUpdateTs] = useState<number | null>(null);
   const [sampleCount, setSampleCount] = useState<number>(0);
+  const [, setForceUpdate] = useState(Date.now()); // State to trigger re-renders for relative time
 
-  // Calculate time range based on selected period
+  // Effect to update relative time display periodically
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setForceUpdate(Date.now());
+    }, 30000); // Update every 30 seconds
+    return () => clearInterval(timerId); // Cleanup interval on unmount
+  }, []);
+
+
   const { begin, end } = useMemo(() => {
     const now = new Date();
     let beginDate: Date;
-
     switch (period) {
       case '1h': beginDate = subHours(now, 1); break;
-      case '6h': beginDate = subHours(now, 6); break;
+      case '4h': beginDate = subHours(now, 4); break; // Updated
+      case '12h': beginDate = subHours(now, 12); break; // Added
       case '24h': beginDate = subHours(now, 24); break;
       case '7d': beginDate = subDays(now, 7); break;
-      case '30d': beginDate = subDays(now, 30); break; // Approximation
+      case '30d': beginDate = subDays(now, 30); break;
       case '1y': beginDate = subYears(now, 1); break;
-      case 'all': beginDate = new Date(0); break; // Epoch for all time
-      default: beginDate = subHours(now, 24);
+      case 'all': beginDate = new Date(0); break;
+      default: beginDate = subHours(now, 24); // Default remains 24h
     }
-    const endDate = new Date(now.getTime() + 60000); // 1 minute ahead
-
+    const endDate = new Date(now.getTime() + 60000);
     return { begin: beginDate.toISOString(), end: endDate.toISOString() };
   }, [period]);
 
-  // Initial data query (fetches all sensors in range)
   const { loading: queryLoading, error: queryError, refetch } = useQuery<QueryData, QueryVars>(
-    GET_SAMPLES_IN_RANGE, // Use the updated inline query
+    GET_SAMPLES_IN_RANGE,
     {
-      variables: { begin, end }, // No deviceSpId here
+      variables: { begin, end },
       notifyOnNetworkStatusChange: true,
       onCompleted: (data) => {
-        // Filter results client-side
         const relevantSamples = (data?.samples || []).filter(
           sample => sample.deviceSpId === deviceSpId
         );
-
-        // Try to set friendly name from the first relevant sample
         if (relevantSamples.length > 0 && relevantSamples[0].friendlyName) {
           setFriendlyName(relevantSamples[0].friendlyName);
         } else {
-          // Keep default or potentially fetch separately if needed
            setFriendlyName(`Sensor ${deviceSpId}`);
         }
-
         const formattedData = relevantSamples
           .map(sample => ({
             timestamp: parseTimestamp(sample.createdOn),
@@ -170,7 +213,6 @@ const SensorChart = () => {
           }))
           .filter(dp => dp.timestamp !== undefined)
           .sort((a, b) => a.timestamp! - b.timestamp!);
-
         setChartData(formattedData as ChartDataPoint[]);
         setSampleCount(formattedData.length);
         if (formattedData.length > 0) {
@@ -188,44 +230,64 @@ const SensorChart = () => {
     }
   );
 
-  // Subscription for ALL real-time updates
-  const { loading: subLoading, error: subError } = useSubscription<SubscriptionData>( // No variables needed
-    SENSOR_UPDATES_SUBSCRIPTION, // Use the imported subscription
+  const { loading: subLoading, error: subError } = useSubscription<SubscriptionData>(
+    SENSOR_UPDATES_SUBSCRIPTION,
     {
-      // No variables needed here
       onData: ({ data: subscriptionResult }) => {
         const update = subscriptionResult?.data?.sensorUpdates;
-
-        // Filter updates client-side
         if (update && update.deviceSpId === deviceSpId) {
           const newTimestamp = parseTimestamp(update.createdOn);
-          if (newTimestamp === undefined) return;
+          if (newTimestamp === undefined) return; // Ignore if timestamp is invalid
+
+          // Calculate the *current* start time for the sliding window
+          const now = new Date();
+          let currentBeginDate: Date;
+          switch (period) {
+            case '1h': currentBeginDate = subHours(now, 1); break;
+            case '4h': currentBeginDate = subHours(now, 4); break;
+            case '12h': currentBeginDate = subHours(now, 12); break;
+            case '24h': currentBeginDate = subHours(now, 24); break;
+            case '7d': currentBeginDate = subDays(now, 7); break;
+            case '30d': currentBeginDate = subDays(now, 30); break;
+            case '1y': currentBeginDate = subYears(now, 1); break;
+            case 'all': currentBeginDate = new Date(0); break;
+            default: currentBeginDate = subHours(now, 24);
+          }
+          const currentBeginTimestamp = currentBeginDate.getTime();
+
+          // Ignore update if it's older than the calculated sliding window start
+          if (newTimestamp < currentBeginTimestamp) {
+              return;
+          }
 
           // Update friendly name if it changed
           if (update.friendlyName && update.friendlyName !== friendlyName) {
             setFriendlyName(update.friendlyName);
           }
 
-          // Add new data point
+          // Update chart data: add new point and filter out old points
           setChartData(prevData => {
             const newDataPoint: ChartDataPoint = {
               timestamp: newTimestamp,
               temperature: update.temperatureC,
               humidity: update.humidity,
             };
-            const existingIndex = prevData.findIndex(p => p.timestamp === newTimestamp);
-            if (existingIndex !== -1) return prevData; // Avoid duplicates
 
-            const combined = [...prevData, newDataPoint].sort((a, b) => a.timestamp - b.timestamp);
-            return combined;
+            // Combine new point with previous data, avoiding duplicates
+            const combined = prevData.some(p => p.timestamp === newTimestamp)
+              ? [...prevData]
+              : [...prevData, newDataPoint];
+
+            // Filter out points older than the current sliding window start
+            const filtered = combined.filter(p => p.timestamp >= currentBeginTimestamp);
+
+            // Sort chronologically
+            return filtered.sort((a, b) => a.timestamp - b.timestamp);
           });
 
-          // Update status fields
+          // Update status fields (use the timestamp of the *new* update)
           setLastUpdateTs(newTimestamp);
-          // Increment count - Note: This might slightly overcount if an update arrives
-          // while the initial query is still fetching overlapping data.
-          // A more robust solution might involve de-duplication based on timestamp.
-          setSampleCount(prevCount => prevCount + 1);
+          // Sample count will be updated implicitly when chartData state updates and component re-renders
         }
       },
       onError: (err) => {
@@ -234,14 +296,16 @@ const SensorChart = () => {
     }
   );
 
-  // Refetch data when the period changes
   useEffect(() => {
-    // Pass only begin/end as variables now
     refetch({ begin, end });
-  }, [period, begin, end, refetch]); // deviceSpId removed as it's not a query variable
+  }, [period, begin, end, refetch]);
 
-  // Determine overall loading state
   const isLoading = queryLoading;
+
+  const maxTicks = 12;
+  const calculatedInterval = chartData.length > maxTicks
+    ? Math.max(0, Math.floor(chartData.length / maxTicks) -1)
+    : 0;
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -249,7 +313,6 @@ const SensorChart = () => {
         Chart: {friendlyName} (Sensor ID: {deviceSpId})
       </h1>
 
-      {/* Error Alerts */}
       {queryError && (
         <Alert variant="destructive" className="mb-4">
           <Terminal className="h-4 w-4" />
@@ -265,9 +328,7 @@ const SensorChart = () => {
         </Alert>
       )}
 
-      {/* Controls and Status */}
       <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-        {/* Period Selector */}
         <div className="flex items-center gap-2">
           <Label htmlFor="period-select">Period:</Label>
           <Select value={period} onValueChange={setPeriod}>
@@ -284,14 +345,12 @@ const SensorChart = () => {
           </Select>
         </div>
 
-        {/* Status Info */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>Samples: {isLoading ? '...' : sampleCount}</span>
           <span>Last Update: {isLoading ? '...' : formatDisplayTimestamp(lastUpdateTs)}</span>
         </div>
       </div>
 
-      {/* Chart Area */}
       <div className="w-full h-[400px] bg-card p-4 rounded-lg shadow">
         {isLoading && <div className="flex justify-center items-center h-full">Loading chart data...</div>}
         {!isLoading && chartData.length === 0 && !queryError && (
@@ -299,16 +358,19 @@ const SensorChart = () => {
         )}
         {!isLoading && chartData.length > 0 && (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            {/* Increased bottom margin further for rotated ticks */}
+            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis
                 dataKey="timestamp"
                 type="number"
                 scale="time"
                 domain={['dataMin', 'dataMax']}
-                tickFormatter={(unixTime) => new Date(unixTime).toLocaleTimeString()}
+                // Pass the custom tick component and props
+                tick={<CustomizedAxisTick period={period} />}
+                interval={calculatedInterval}
                 stroke="#9ca3af"
-                tick={{ fill: "#d1d5db" }}
+                // Remove direct tick prop object
               />
               <YAxis
                 yAxisId="left"
