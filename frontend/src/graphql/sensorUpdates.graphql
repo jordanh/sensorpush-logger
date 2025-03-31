@@ -1,9 +1,10 @@
+# Subscription for all sensor updates
 subscription SensorUpdates {
   sensorUpdates {
-    deviceSpId # Changed from device_sp_id
-    friendlyName # Changed from friendly_name
-    temperatureC # Changed from temperature_c
+    deviceSpId
+    friendlyName
+    temperatureC
     humidity
-    createdOn # Changed from created_on
+    createdOn
   }
 }

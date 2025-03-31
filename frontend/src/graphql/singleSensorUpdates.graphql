@@ -1,0 +1,11 @@
+# Subscription to get real-time updates for a single specified sensor
+subscription SingleSensorUpdates($deviceSpId: Int!) {
+  # Assumes backend implements this subscription, filtering by deviceSpId
+  singleSensorUpdates(deviceSpId: $deviceSpId) {
+    # Payload needed to update the chart and status info
+    temperatureC
+    humidity
+    createdOn # Timestamp for the new data point
+    friendlyName # To update the title if it changes
+  }
+}

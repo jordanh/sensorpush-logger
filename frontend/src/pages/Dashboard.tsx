@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { gql, useSubscription, useQuery } from "@apollo/client";
+import { Link } from "react-router-dom"; // Import Link for navigation
 import {
   Table,
   TableBody,
@@ -13,11 +14,11 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"; // Import shadcn/ui Alert components
-import { Terminal } from "lucide-react"; // Icon for Alert
-import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell"; // Keep existing import for now
+import { Terminal, LineChart } from "lucide-react"; // Import icons
+import EditableFriendlyNameCell from "../components/EditableFriendlyNameCell";
 import { cn } from "@/lib/utils"; // Import the cn utility
 
-// GraphQL Definitions (keep as is)
+// GraphQL Definitions (Inline)
 const SENSOR_UPDATES_SUBSCRIPTION = gql`
   subscription SensorUpdates {
     sensorUpdates {
@@ -43,7 +44,7 @@ const GET_SENSORS_QUERY = gql`
   }
 `;
 
-// Interfaces (keep as is)
+// Interfaces
 interface SensorUpdatePayload {
   deviceSpId: number;
   friendlyName: string;
@@ -79,7 +80,7 @@ interface SensorState {
   highlight: "new" | "updated" | "";
 }
 
-// Helper functions (keep as is)
+// Helper functions
 const parseTimestamp = (isoString: string | null | undefined): number | undefined => {
   if (!isoString) return undefined;
   try {
@@ -102,6 +103,7 @@ const formatTimestamp = (timestamp: number | undefined): string => {
 const Dashboard = () => {
   const [sensors, setSensors] = useState<Map<number, SensorState>>(new Map());
 
+  // Use the inline GET_SENSORS_QUERY
   const {
     data: initialSensorsData,
     loading: initialLoading,
@@ -110,13 +112,14 @@ const Dashboard = () => {
     fetchPolicy: "cache-and-network",
   });
 
+  // Use the inline SENSOR_UPDATES_SUBSCRIPTION
   const {
     data: subscriptionData,
     loading: subscriptionLoading, // Can be ignored
     error: subscriptionError
   } = useSubscription<SensorUpdateData>(SENSOR_UPDATES_SUBSCRIPTION);
 
-  // Effect to load initial sensors (logic remains the same)
+  // Effect to load initial sensors
   useEffect(() => {
     if (initialSensorsData?.sensors) {
       setSensors((prevSensors) => {
@@ -140,7 +143,7 @@ const Dashboard = () => {
     }
   }, [initialSensorsData]);
 
-  // Effect to handle subscription data (logic remains the same)
+  // Effect to handle subscription data
   useEffect(() => {
     if (subscriptionData?.sensorUpdates) {
       const update = subscriptionData.sensorUpdates;
@@ -167,7 +170,7 @@ const Dashboard = () => {
     }
   }, [subscriptionData]);
 
-  // Effect to clear highlights (logic remains the same)
+  // Effect to clear highlights
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
     sensors.forEach((sensor) => {
@@ -191,7 +194,7 @@ const Dashboard = () => {
     };
   }, [sensors]);
 
-  // Memoized sorted sensor list (logic remains the same)
+  // Memoized sorted sensor list
   const sortedSensors = useMemo(() => {
     return Array.from(sensors.values()).sort((a, b) => {
       const tsA = a.lastUpdateTs ?? -Infinity;
@@ -203,9 +206,9 @@ const Dashboard = () => {
   const isLoading = initialLoading;
 
   return (
-    // Replace Container with div and Tailwind classes
+    // Container div
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      {/* Replace Typography with h1 and Tailwind classes */}
+      {/* Title */}
       <h1 className="text-2xl font-bold mb-4">
         Dashboard
       </h1>
@@ -224,9 +227,9 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Subscription Error (less critical) */}
+      {/* Subscription Error */}
       {subscriptionError && !isLoading && (
-         <Alert variant="default" className="mb-4 bg-yellow-100 border-yellow-300 text-yellow-800"> {/* Custom variant styling */}
+         <Alert variant="default" className="mb-4 bg-yellow-100 border-yellow-300 text-yellow-800">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Subscription Warning</AlertTitle>
           <AlertDescription>
@@ -235,7 +238,7 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Replace MUI Table with shadcn/ui Table */}
+      {/* Sensor Table */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -244,25 +247,30 @@ const Dashboard = () => {
             <TableHead>Temperature (°C)</TableHead>
             <TableHead>Humidity (%)</TableHead>
             <TableHead>Last Update</TableHead>
+            <TableHead>Actions</TableHead> {/* Actions Header */}
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedSensors.map((sensor) => (
             <TableRow
               key={sensor.spId}
-              // Apply conditional classes using cn utility
               className={cn(
-                "transition-colors duration-1000 ease-in-out", // Base transition
+                "transition-colors duration-1000 ease-in-out",
                 sensor.highlight === "new" && "bg-green-100",
                 sensor.highlight === "updated" && "bg-yellow-100"
               )}
             >
-              {/* Keep EditableFriendlyNameCell for now */}
               <EditableFriendlyNameCell spId={sensor.spId} initialName={sensor.friendlyName} />
               <TableCell>{sensor.spId}</TableCell>
               <TableCell>{sensor.temperature?.toFixed(2) ?? "-"}</TableCell>
               <TableCell>{sensor.humidity?.toFixed(2) ?? "-"}</TableCell>
               <TableCell>{sensor.lastUpdateStr ?? "-"}</TableCell>
+              {/* Actions Cell */}
+              <TableCell>
+                <Link to={`/dashboard/chart/${sensor.spId}`}>
+                  <LineChart className="h-5 w-5 text-blue-600 hover:text-blue-800" />
+                </Link>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -271,4 +279,6 @@ const Dashboard = () => {
   );
 };
 
+// Export SENSOR_UPDATES_SUBSCRIPTION for use in SensorChart
+export { SENSOR_UPDATES_SUBSCRIPTION };
 export default Dashboard;

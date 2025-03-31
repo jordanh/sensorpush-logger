@@ -1,0 +1,15 @@
+# Query to get samples within a time range.
+# NOTE: Filtering by deviceSpId must happen client-side until backend is updated.
+query GetSingleSensorSamples($begin: DateTime!, $end: DateTime!) {
+  samples(begin: $begin, end: $end) {
+    deviceSpId # Need this for client-side filtering
+    friendlyName # Need this to potentially set the name
+    temperatureC
+    humidity
+    createdOn
+  }
+  # Cannot query single sensor directly with current schema
+  # sensor(spId: $deviceSpId) {
+  #   friendlyName
+  # }
+}

@@ -6,6 +6,7 @@ import LogPage from "./pages/Log";
 import ExportPage from "./pages/Export";
 import Sensors from "./pages/Sensors";
 import Config from "./pages/Config";
+import SensorChart from "./pages/SensorChart"; // Import the new chart page
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/chart/:sensorId" element={<SensorChart />} />
         <Route path="/log" element={<LogPage />} /> {/* Add route for Log page */}
         <Route path="/export" element={<ExportPage />} />
         <Route path="/sensors" element={<Sensors />} />
